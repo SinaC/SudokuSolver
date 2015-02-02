@@ -4,6 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+
+//http://angusj.com/sudoku/hints.php
+//http://fr.wikipedia.org/wiki/Sudoku#M.C3.A9thodes_de_r.C3.A9solution_utilis.C3.A9es_par_les_joueurs
+//http://hodoku.sourceforge.net/en/techniques.php
+
 namespace NaturalSudokuSolver
 {
     internal class Program
@@ -12,7 +17,7 @@ namespace NaturalSudokuSolver
         {
             SudokuBoard board = new SudokuBoard();
 
-            string board1 = // (cannot be solved with singleton and naked pair/triple/quadruple)
+            string board1 = // (cannot be solved with singleton and naked/hidden pair/triple/quadruple)
                 "...84...9" +
                 "..1.....5" +
                 "8...2.46." + // "8...2146."+ <-- unique solution
@@ -23,7 +28,7 @@ namespace NaturalSudokuSolver
                 "9.....5.." +
                 "3...84...";
 
-            string board2 = // (cannot be solved with singleton and naked pair/triple/quadruple)
+            string board2 = // (cannot be solved with singleton and naked/hidden pair/triple/quadruple)
                 "8........" +
                 "..36....." +
                 ".7..9.2.." +
@@ -179,7 +184,43 @@ namespace NaturalSudokuSolver
                 "138....7." +
                 "564....82";
 
-            board.InitializeGrid(board14);
+            // X-Wing in row 1, 4 column 4, 7 candidate 5
+            string board15 =
+                ".41729.3." +
+                "769..34.2" +
+                ".3264.719" +
+                "4.39..17." +
+                "6.7..49.3" +
+                "19537..24" +
+                "214567398" +
+                "376.9.541" +
+                "958431267";
+
+            // X-Wing in column 0, 4 row 1, 4 candidate 1
+            string board16 =
+    "98..62753" +
+    ".65..3..." +
+    "327.5...6" +
+    "79..3.5.." +
+    ".5...9..." +
+    "832.45..9" +
+    "673591428" +
+    "249.87..5" +
+    "518.2...7";
+
+            // Swordfish in row 1, 2, 8 column 0, 4, 7
+            string board17 =
+    "16.543.7." +
+    ".786.1435" +
+    "4358.76.1" +
+    "72.458.69" +
+    "6..912.57" +
+    "...376..4" +
+    ".16.3..4." +
+    "3...8..16" +
+    "..71645.3";
+
+            board.InitializeGrid(board17);
 
             IEnumerable<SudokuBoard> solutions = board.Solve();
             solutions.ToList().ForEach(x =>

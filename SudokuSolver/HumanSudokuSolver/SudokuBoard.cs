@@ -94,10 +94,6 @@ namespace NaturalSudokuSolver
             }
         }
 
-        //http://angusj.com/sudoku/hints.php
-        //http://fr.wikipedia.org/wiki/Sudoku#M.C3.A9thodes_de_r.C3.A9solution_utilis.C3.A9es_par_les_joueurs
-        //http://hodoku.sourceforge.net/en/tech_naked.php
-
         public IEnumerable<SudokuBoard> Solve()
         {
             ResetSolutions();
@@ -113,12 +109,12 @@ namespace NaturalSudokuSolver
                 if (progress == SudokuProgress.Failed) // Failed, stop with this board
                     yield break;
 
-                // Hidden singles
-                progress = CombineSolvedState(progress, SolveHiddenSingles());
-                if (progress == SudokuProgress.Progress) // at least one modification
-                    continue;
-                if (progress == SudokuProgress.Failed) // Failed, stop with this board
-                    yield break;
+                //// Hidden singles
+                //progress = CombineSolvedState(progress, SolveHiddenSingles());
+                //if (progress == SudokuProgress.Progress) // at least one modification
+                //    continue;
+                //if (progress == SudokuProgress.Failed) // Failed, stop with this board
+                //    yield break;
 
                 //// Locked candidates
                 //progress = CombineSolvedState(progress, SolveLockedCandidates());
@@ -127,12 +123,12 @@ namespace NaturalSudokuSolver
                 //if (progress == SudokuProgress.Failed) // Failed, stop with this board
                 //    yield break;
 
-                // Hidden groups
-                progress = SolveHiddenGroups();
-                if (progress == SudokuProgress.Progress) // at least one modification
-                    continue;
-                if (progress == SudokuProgress.Failed) // Failed, stop with this board
-                    yield break;
+                //// Hidden groups
+                //progress = SolveHiddenGroups();
+                //if (progress == SudokuProgress.Progress) // at least one modification
+                //    continue;
+                //if (progress == SudokuProgress.Failed) // Failed, stop with this board
+                //    yield break;
 
                 //// Naked groups
                 //progress = SolveNakedGroups();
@@ -140,6 +136,13 @@ namespace NaturalSudokuSolver
                 //    continue;
                 //if (progress == SudokuProgress.Failed) // Failed, stop with this board
                 //    yield break;
+
+                // Fishes
+                progress = SolveFishes();
+                if (progress == SudokuProgress.Progress) // at least one modification
+                    continue;
+                if (progress == SudokuProgress.Failed) // Failed, stop with this board
+                    yield break;
 
                 //
 
@@ -262,6 +265,7 @@ namespace NaturalSudokuSolver
 
             return progress;
         }
+
         // Sometimes a candidate within a box is restricted to one row or column. Since one of these cells must contain that specific candidate, the candidate can safely be excluded from the remaining cells in that row or column outside of the box.
         private SudokuProgress SolveLockedCandidatesBlock(IEnumerable<SudokuCell> block)
         {
@@ -370,7 +374,31 @@ namespace NaturalSudokuSolver
             //progress = CombineSolvedState(progress, SolveHiddenGroup(Column(5).Where(c => !c.HasValue && c.CandidateCount > 0), 3) ); // board11
             //progress = CombineSolvedState(progress, SolveHiddenGroup(Row(0).Where(c => !c.HasValue && c.CandidateCount > 0), 2)); // board12
             //progress = CombineSolvedState(progress, SolveHiddenGroup(Block(6).Where(c => !c.HasValue && c.CandidateCount > 0), 3)); // board13
-            progress = CombineSolvedState(progress, SolveHiddenGroup(Block(7).Where(c => !c.HasValue && c.CandidateCount > 0), 4)); // board11
+            //progress = CombineSolvedState(progress, SolveHiddenGroup(Block(7).Where(c => !c.HasValue && c.CandidateCount > 0), 4)); // board11
+
+            for (int groupSize = 2; groupSize <= 4; groupSize++) // TODO: max groupSize depends on Size
+            {
+                // Check rows
+                progress = Rows
+                    .Select(row => SolveHiddenGroup(row.Where(t => !t.HasValue && t.CandidateCount > 0), groupSize))
+                    .Aggregate(progress, CombineSolvedState);
+                if (progress != SudokuProgress.NoProgress)
+                    return progress;
+
+                // Check columns
+                progress = Columns
+                    .Select(column => SolveHiddenGroup(column.Where(t => !t.HasValue && t.CandidateCount > 0), groupSize))
+                    .Aggregate(progress, CombineSolvedState);
+                if (progress != SudokuProgress.NoProgress)
+                    return progress;
+
+                // Check blocks
+                progress = Blocks
+                    .Select(block => SolveHiddenGroup(block.Where(t => !t.HasValue && t.CandidateCount > 0), groupSize))
+                    .Aggregate(progress, CombineSolvedState);
+                if (progress != SudokuProgress.NoProgress)
+                    return progress;
+            }
 
             return progress;
         }
@@ -389,13 +417,6 @@ namespace NaturalSudokuSolver
                     count[candidate].Add(cell);
                 }
 
-            //// ++ DEBUG
-            //for (int candidate = 1; candidate < 10; candidate++)
-            //{
-            //    System.Diagnostics.Debug.WriteLine("candidate {0} -> cells {1}", candidate, count[candidate] == null ? "empty" : count[candidate].Select(c => String.Format("[{0},{1}]", c.X, c.Y)).Aggregate((s, s1) => s + "," + s1));
-            //}
-            //// -- DEBUG
-
             // create a list of candidates with no more than groupSize elements
             IEnumerable<int> validCandidates = Enumerable.Range(1, 9).Where(c => count[c] != null && count[c].Count <= groupSize);
             // create every combinations of valid candidates
@@ -404,8 +425,6 @@ namespace NaturalSudokuSolver
             // foreach permutation, check if union of cells in this permutation has exactly groupSize elements, remove every other candidate from cells in permutation
             foreach(int[] combination in combinations)
             {
-                //System.Diagnostics.Debug.WriteLine("combination "+ combination.Select(c => c.ToString(CultureInfo.InvariantCulture)).Aggregate((s, s1) => s + "," + s1));
-
                 HashSet<SudokuCell> union = new HashSet<SudokuCell>();
                 foreach(int candidate in combination)
                 {
@@ -558,6 +577,105 @@ namespace NaturalSudokuSolver
                             cell.RemoveCandidates(candidates, "Naked groups");
                             progress = CombineSolvedState(progress, SudokuProgress.Progress);
                         }
+                }
+            }
+
+            return progress;
+        }
+
+        #endregion
+
+        #region Fish
+
+        //  Look for a certain number of non overlapping houses. Those houses are called the base sets (set is synonymous for house here), the candidates contained within them are the base candidates. Non overlapping means, that any base candidate is contained only in one base set, the sets themselves can overlap. Now look for an equal number of different non overlapping houses that cover all base candidates. These new sets are the cover sets containing the cover candidates. If such a combination exists, all cover candidates that are not base candidates can be eliminated.
+
+        public SudokuProgress SolveFishes()
+        {
+            SudokuProgress progress = SudokuProgress.NoProgress;
+
+            SolveFish(3);
+
+            return progress;
+        }
+
+        private SudokuProgress SolveFish(int size)
+        {
+            SudokuProgress progress = SudokuProgress.NoProgress;
+
+            // foreach candidate
+            //  count on horizontal/vertical axis how many cells contain this candidate -> 2 maps: List<SudokuCell>[candidate,X/Y]
+            //  if there is size number of rows/columns containing no more than size elements in a row/column
+            //      we can remove this candidate from other axis
+
+            List<SudokuCell>[,] horizontalProjection = new List<SudokuCell>[Size+1, Size];
+            List<SudokuCell>[,] verticalProjection = new List<SudokuCell>[Size+1, Size];
+
+            foreach(SudokuCell cell in Cells.Where(c => !c.HasValue && c.CandidateCount > 0))
+            {
+                foreach(int candidate in cell.Candidates)
+                {
+                    horizontalProjection[candidate, cell.X] = horizontalProjection[candidate, cell.X] ?? new List<SudokuCell>();
+                    horizontalProjection[candidate, cell.X].Add(cell);
+                    verticalProjection[candidate, cell.Y] = verticalProjection[candidate, cell.Y] ?? new List<SudokuCell>();
+                    verticalProjection[candidate, cell.Y].Add(cell);
+                }
+            }
+
+            for (int candidate = 1; candidate <= 9; candidate++)
+            {
+                List<SudokuCell>[] admissableColumns = new List<SudokuCell>[Size];
+                List<SudokuCell>[] admissableRows = new List<SudokuCell>[Size];
+
+                // Check horizontal/vertical projection with no more than size elements
+                for (int axis = 0; axis < Size; axis++)
+                {
+                    List<SudokuCell> horizontalCells = horizontalProjection[candidate, axis];
+                    if (horizontalCells != null && horizontalCells.Count >= 2 && horizontalCells.Count <= size)
+                    {
+                        System.Diagnostics.Debug.WriteLine("candidate: {0} X: {1} => {2}", candidate, axis, horizontalCells.Select(c => String.Format("[{0}, {1}]", c.X, c.Y)).Aggregate((s, s1) => s + ";" + s1));
+                        admissableColumns[axis] = horizontalCells;
+                    }
+
+                    List<SudokuCell> verticalCells = verticalProjection[candidate, axis];
+                    if (verticalCells != null && verticalCells.Count >= 2 && verticalCells.Count <= size)
+                    {
+                        System.Diagnostics.Debug.WriteLine("candidate: {0} Y: {1} => {2}", candidate, axis, verticalCells.Select(c => String.Format("[{0}, {1}]", c.X, c.Y)).Aggregate((s, s1) => s + ";" + s1));
+                        admissableRows[axis] = verticalCells;
+                    }
+                }
+
+                // Horizontal
+                IEnumerable<int[]> columnCombinations = Combinations(Enumerable.Range(0, Size).Where(y => admissableColumns[y] != null), size);
+                foreach (int[] combination in columnCombinations)
+                {
+                    System.Diagnostics.Debug.WriteLine("testing column combination {0} candidate {1}", combination.Select(c => c.ToString(CultureInfo.InvariantCulture)).Aggregate((s, s1) => s + "," + s1), candidate);
+                    // in combination, count(unique Y) must be equal to size
+                    ISet<int> found = new HashSet<int>();
+                    foreach (SudokuCell cell in combination.SelectMany(x => admissableColumns[x]))
+                        found.Add(cell.Y);
+                    //
+                    if (found.Count == size)
+                    {
+                        System.Diagnostics.Debug.WriteLine("columns {0} candidate {1} is OK", combination.Select(c => c.ToString(CultureInfo.InvariantCulture)).Aggregate((s, s1) => s + "," + s1), candidate);
+                        // TODO: remove candidate from every unique Y except in admissable columns
+                    }
+                }
+
+                // Vertical
+                IEnumerable<int[]> rowCombinations = Combinations(Enumerable.Range(0, Size).Where(y => admissableRows[y] != null), size);
+                foreach (int[] combination in rowCombinations)
+                {
+                    System.Diagnostics.Debug.WriteLine("testing row combination {0} candidate {1}", combination.Select(c => c.ToString(CultureInfo.InvariantCulture)).Aggregate((s, s1) => s + "," + s1), candidate);
+                    // in combination, count(unique x) must be equal to size
+                    ISet<int> found = new HashSet<int>();
+                    foreach (SudokuCell cell in combination.SelectMany(y => admissableRows[y]))
+                        found.Add(cell.X);
+                    //
+                    if (found.Count == size)
+                    {
+                        System.Diagnostics.Debug.WriteLine("rows {0} candidate {1} is OK", combination.Select(c => c.ToString(CultureInfo.InvariantCulture)).Aggregate((s, s1) => s + "," + s1), candidate);
+                        // TODO: remove candidate from every unique X except in admissable rows
+                    }
                 }
             }
 

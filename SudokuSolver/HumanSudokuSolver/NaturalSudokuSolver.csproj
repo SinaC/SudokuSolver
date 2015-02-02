@@ -41,7 +41,7 @@
     <Compile Include="SudokuBoard.cs" />
     <Compile Include="SudokuFactory.cs" />
     <Compile Include="SudokuProgress.cs" />
-    <Compile Include="SudokuTile.cs" />
+    <Compile Include="SudokuCell.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
